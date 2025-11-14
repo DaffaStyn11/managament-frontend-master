@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProducts } from "@/lib/api";
+import { getProducts, getProductDetail } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Star,
   ShoppingCart,
@@ -11,14 +17,34 @@ import {
   Package,
   AlertTriangle,
   Loader2,
+  LogOut,
+  Users,
+  Eye,
+  X,
+  Truck,
+  Shield,
+  Ruler,
+  Tag,
+  MessageSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+
+import { useRouter } from "next/navigation";
 
 export default function ProdukPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  
+  // State untuk modal detail produk
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Fetch data produk
   useEffect(() => {
@@ -49,13 +75,50 @@ export default function ProdukPage() {
     });
   };
 
-  if (loading)
+  // Fungsi untuk membuka detail produk
+  const handleViewDetail = async (productId: number) => {
+    setLoadingDetail(true);
+    setIsModalOpen(true);
+    setSelectedImageIndex(0);
+    
+    try {
+      const detail = await getProductDetail(productId);
+      setSelectedProduct(detail);
+    } catch (err) {
+      console.error("Gagal memuat detail produk:", err);
+      setSelectedProduct(null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // Fungsi untuk menutup modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+    setSelectedImageIndex(0);
+  };
+
+  // Format tanggal
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  if (authLoading || loading)
     return (
       <div className="flex flex-col justify-center items-center min-h-screen text-gray-300">
         <Loader2 className="animate-spin w-10 h-10 mb-2 text-blue-500" />
         <p>Memuat produk...</p>
       </div>
     );
+
+  // Jika tidak terautentikasi, useAuth akan redirect ke login
+  if (!isAuthenticated) return null;
 
   if (error)
     return (
@@ -74,16 +137,36 @@ export default function ProdukPage() {
             🛍️ Daftar Produk
           </h1>
 
-          {/* Search */}
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
-            <Input
-              type="text"
-              placeholder="Cari produk..."
-              className="bg-[#1f1f1f] border border-gray-700 text-white pl-10 rounded-xl focus:ring-2 focus:ring-blue-600"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Search */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+              <Input
+                type="text"
+                placeholder="Cari produk..."
+                className="bg-[#1f1f1f] border border-gray-700 text-white pl-10 rounded-xl focus:ring-2 focus:ring-blue-600"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {/* Tombol User & Logout */}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => router.push("/user")}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
+              >
+                <Users className="w-4 h-4" />
+                User
+              </Button>
+              <Button
+                onClick={logout}
+                className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 whitespace-nowrap"
+              >
+                <LogOut className="w-4 h-4" />
+                Keluar
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -145,25 +228,145 @@ export default function ProdukPage() {
                     <p className="text-xl font-semibold text-blue-400">
                       {formatPrice(p.price)}
                     </p>
-                    <Button
-                      variant="secondary"
-                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      Beli
-                    </Button>
                   </div>
 
                   {/* Description */}
                   <p className="text-gray-400 text-xs mt-3 line-clamp-3">
                     {p.description}
                   </p>
+
+                  {/* Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      onClick={() => handleViewDetail(p.id)}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Detail
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      Beli
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal Detail Produk - VERSI SEDERHANA */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-2xl bg-gray-900 text-white border border-gray-700">
+          {loadingDetail ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="animate-spin w-12 h-12 mb-4 text-blue-500" />
+              <p className="text-gray-400">Memuat detail produk...</p>
+            </div>
+          ) : selectedProduct ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-white">
+                  {selectedProduct.title}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-4">
+                {/* Gambar Produk */}
+                <div className="w-full h-80 bg-gray-800 rounded-xl overflow-hidden">
+                  <img
+                    src={selectedProduct.thumbnail}
+                    alt={selectedProduct.title}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                {/* Harga & Rating */}
+                <div className="flex items-center justify-between bg-gray-800 p-4 rounded-xl">
+                  <div>
+                    <p className="text-3xl font-bold text-blue-400">
+                      {formatPrice(selectedProduct.price)}
+                    </p>
+                    {selectedProduct.discountPercentage > 0 && (
+                      <p className="text-sm text-green-400">
+                        Diskon {selectedProduct.discountPercentage.toFixed(1)}%
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                    <span className="text-lg font-semibold">
+                      {selectedProduct.rating.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Deskripsi */}
+                <div className="bg-gray-800 p-4 rounded-xl">
+                  <h3 className="text-lg font-semibold mb-2">Deskripsi</h3>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {selectedProduct.description}
+                  </p>
+                </div>
+
+                {/* Info Tambahan Singkat */}
+                <div className="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-xl">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Brand</p>
+                    <p className="font-semibold">{selectedProduct.brand}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Kategori</p>
+                    <p className="font-semibold capitalize">
+                      {selectedProduct.category}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Stok</p>
+                    <p
+                      className={`font-semibold ${
+                        selectedProduct.stock < 10
+                          ? "text-red-400"
+                          : "text-green-400"
+                      }`}
+                    >
+                      {selectedProduct.stock} unit
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Berat</p>
+                    <p className="font-semibold">{selectedProduct.weight} kg</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    onClick={handleCloseModal}
+                    variant="outline"
+                    className="flex-1 border-gray-600 text-white hover:bg-gray-800"
+                  >
+                    Tutup
+                  </Button>
+                  <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    Beli Sekarang
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-16">
+              <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+              <p className="text-gray-400">Gagal memuat detail produk</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

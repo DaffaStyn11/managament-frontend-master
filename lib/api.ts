@@ -30,3 +30,9 @@ export async function getUsers(){
   if (!res.ok) throw new Error("Gagal menampilkan user");
   return await res.json();
 }
+
+export async function getProductDetail(id:number){
+  const res = await fetch(`${BASE_URL}/products/${id}`);
+  if (!res.ok) throw new Error("Gagal mengambil detail produk");
+  return await res.json();
+}

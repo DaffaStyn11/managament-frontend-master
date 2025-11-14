@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getUsers } from "@/lib/api";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Mail,
   Phone,
@@ -16,16 +11,22 @@ import {
   User,
   Search,
   Filter,
+  LogOut,
+  Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 export default function UserPage() {
+  const { isAuthenticated, isloadingAuth: loadingAuth, logout } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterGender, setFilterGender] = useState("all");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -58,19 +59,37 @@ export default function UserPage() {
     setFiltered(result);
   }, [search, filterGender, users]);
 
-  if (loading) {
+  if (loading || loadingAuth) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-black text-white">
         Memuat data user...
       </div>
     );
   }
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white p-8">
-      <h1 className="text-4xl font-extrabold mb-8 text-center tracking-wide text-white">
-        👥 Daftar Pengguna
-      </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <h1 className="text-4xl font-extrabold text-center tracking-wide text-white">
+          👥 Daftar Pengguna
+        </h1>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => router.push("produk")}
+            className="bg-blue-400 hover:bg-amber-200 text-white items-center gap-2 whitespace-nowrap"
+          >
+            <Package className="w-4 h-4"></Package>
+            Product
+          </Button>
+          <Button
+            onClick={logout}
+            className="bg-red-500 text-white hover:bg-red-300 flex items-center gap-2 whitespace-nowrap"
+          >
+            <LogOut className="w-4 h-4">Logout</LogOut>
+          </Button>
+        </div>
+      </div>
 
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-10">
@@ -138,9 +157,7 @@ export default function UserPage() {
                 />
                 <span
                   className={`absolute top-3 left-3 text-xs px-2 py-1 rounded-full ${
-                    u.gender === "male"
-                      ? "bg-blue-600/80"
-                      : "bg-pink-600/80"
+                    u.gender === "male" ? "bg-blue-600/80" : "bg-pink-600/80"
                   }`}
                 >
                   {u.gender}
